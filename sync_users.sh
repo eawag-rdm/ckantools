@@ -1,15 +1,20 @@
 #!/bin/bash
 
-#############################################
+############################################################
 # Copy users from one CKAN instance to another.
 #
 # HvW @ Eawag - 2017-05-17
 #
-#############################################
-set -e
-set -u
+# When username or id already exists in target,
+# the record is skipped. The script iterates
+# throughh tables "user" and "ldap_user".
+# Both have to exist on target (activate ckanext-ldap).
+############################################################
 
-## Supply connection parameters to databases ################
+set -e # exit if any statement return non-true
+set -u # exit if un-initialized variable is used
+
+## Supply connection parameters to databases ###############
 sourcehost="eaw-ckan-dev1.eawag.wroot.emp-eaw.ch:5432"
 targethost="eaw-ckan-db1.eawag.wroot.emp-eaw.ch:5432"
 # targethost="localhost:5432"
@@ -19,6 +24,7 @@ pgsourcepw=`pass eawag/postgres:ckan_default@eaw-ckan-dev1`
 pgtargetpw=`pass eawag/postgres:ckan_default@eaw-ckan-db1`
 # pgtargetpw=`pass eawag/postgres:ckan_default@localhost`
 
+############################################################
 
 sourceconn="postgresql://ckan_default:$pgsourcepw@$sourcehost/ckan_default"
 targetconn="postgresql://ckan_default:$pgtargetpw@$targethost/ckan_default"
