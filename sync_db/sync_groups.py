@@ -38,6 +38,19 @@ def readtable(conn, table):
     return conn.execute(s).fetchall()
         
 
-mktmptable(conn_t, 'revision')
-t_revision_src = readtable(conn_s, 'revision')
+res = mktmptable(conn_t, 'public.revision')
+#t_revision_src = readtable(conn_s, 'revision')
+
+t_group_source = readtable(conn_s, 'public.group')
+activegroups = [x for x in t_group_source if x[5] != 'deleted']
+activegroups_id = [x[0] for x in activegroups]
+revids = [x[6] for x in activegroups]
+
+t_group_revision_source = readtable(conn_s, 'public.group_revision')
+# remove records with continuity_id not in activegroups
+activegroup_revision = [x for x in t_group_revision_source if x[7] in activegroups_id]
+activegroup_revision_revision_id = [x[6] for x in activegroup_revision]
+
+t_group_revision_source = readtable(conn_s, 'public.group_revision')
+
 
