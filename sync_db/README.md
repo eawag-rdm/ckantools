@@ -43,11 +43,13 @@ Assumptions:
   3. The database-cluster at target is properly configured:
       + in `/etc/postgresql/${postgres_version}/main/postgresql.conf`:
           `listen_addresses = '*'`
-      + in `/etc/postgresql/9.5/main/pg_hba.conf`:
-          > \# Allow ckan-instance
-          > host    all             all             152.88.xxx.xxx/32        md5
-          > \# Allow developer's workstation
-          > host    all             all             152.88.xxx.xxx/32        md5
+	  + in `/etc/postgresql/9.5/main/pg_hba.conf`:
+	      ~~~
+          # Allow ckan-instance
+          host    all             all             152.88.xxx.xxx/32        md5
+          # Allow developer's workstation
+          host    all             all             152.88.xxx.xxx/32        md5
+		  ~~~
   4. Users `ckan_default` and `datastore_default` exist in DB on `targethost`.
       + `sudo -u postgres createuser -S -D -R -P ckan_default`
       + `sudo -u postgres createuser -S -D -R -P -l datastore_default`
