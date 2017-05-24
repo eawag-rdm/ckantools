@@ -42,7 +42,9 @@ Assumptions:
   2. The database-cluster at target is installed with `--locale en_US.UTF-8`.
   3. The database-cluster at target is properly configured:
       + in `/etc/postgresql/${postgres_version}/main/postgresql.conf`:
-          `listen_addresses = '*'`
+      ~~~
+      `listen_addresses = '*'`
+	  ~~~
 	  + in `/etc/postgresql/9.5/main/pg_hba.conf`:
 	      ~~~
           # Allow ckan-instance
