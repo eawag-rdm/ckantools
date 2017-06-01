@@ -1,0 +1,35 @@
+#!/usr/bin/env python
+# _*_ coding: utf-8 _*
+
+"""Usage:
+ck_syncres [-p SOURCE_STORPATH] [-q TARGET_STORPATH] SOURCE_HOST TARGET_HOST RESOURCES
+ck_syncres -s SOURCE_HOST TARGET_HOST
+ck_syncres -h
+
+Copies resources or files in "storage" from one CKAN Filestore to another.
+Nothing is deleted. However, files with the same path are silently overwritten.
+
+Arguments:
+  RESOURCES    regular expression for ressourceids to copy
+  SOURCE_HOST  host to copy from
+  TARGET_HOST  host to copy to
+
+Options:
+  -s --storage  synchronize "storage" (images for groups etc.)
+  -p SOURCE_STORPATH [default: /var/lib/ckan/default]
+  -q TARGET_STORPATH [default: /var/lib/ckan/default]
+
+"""
+
+import ckanapi
+from docopt import docopt
+
+
+def main():
+    args = docopts(__doc__)
+    print(args)
+
+if __name == '__main__':
+    main()
+
+
