@@ -2,34 +2,121 @@
 # _*_ coding: utf-8 _*
 
 """Usage:
-ck_syncres [-p SOURCE_STORPATH] [-q TARGET_STORPATH] SOURCE_HOST TARGET_HOST RESOURCES
-ck_syncres -s SOURCE_HOST TARGET_HOST
+ck_syncres [-p SOURCE_STORPATH] [-q TARGET_STORPATH] [-u OWNER] SOURCE_HOST TARGET_HOST RESOURCES
+ck_syncres -s [-p SOURCE_STORPATH] [-q TARGET_STORPATH] [-u OWNER] SOURCE_HOST TARGET_HOST
 ck_syncres -h
 
 Copies resources or files in "storage" from one CKAN Filestore to another.
-Nothing is deleted. However, files with the same path are silently overwritten.
+Nothing is deleted. However, files with the same path are silently overwritten,
+unless they are newer on the TARGET_HOST.
+
+Assumptions: User has passwordless login on both hosts as well as passwordless
+sudo on targethost.
 
 Arguments:
-  RESOURCES    regular expression for ressourceids to copy
+  RESOURCES    regular expression for ressource-ids to copy
   SOURCE_HOST  host to copy from
   TARGET_HOST  host to copy to
 
 Options:
-  -s --storage  synchronize "storage" (images for groups etc.)
-  -p SOURCE_STORPATH [default: /var/lib/ckan/default]
-  -q TARGET_STORPATH [default: /var/lib/ckan/default]
+  -s --storage        synchronize "storage" (images for groups etc.)
+  -p SOURCE_STORPATH  [default: /var/lib/ckan/default]
+  -q TARGET_STORPATH  [default: /var/lib/ckan/default]
+  -u OWNER            owner of files on TARGET_HOST [default: www-data]
 
 """
 
 import ckanapi
 from docopt import docopt
+import paramiko as pm
+import os
+from subprocess import check_call, CalledProcessError
+import sys
+from shutil import rmtree
 
+LOCALTMPDIR = '/tmp'
+PKEYFILE = os.path.join(os.environ['HOME'], '.ssh/id_rsa')
+HOSTKEYFILE = os.path.join(os.environ['HOME'], '.ssh/known_hosts')
+
+def sshclient():
+    client = pm.SSHClient()
+    client.set_missing_host_key_policy(pm.AutoAddPolicy())
+    client.load_host_keys(HOSTKEYFILE)
+    return client
 
 def main():
-    args = docopts(__doc__)
+    client = sshclient()
+    args = docopt(__doc__)
     print(args)
+    s_host = args['SOURCE_HOST']
+    t_host = args['TARGET_HOST']
+    t_user = args['-u']
+    if args['--storage']:
+        tmp_storage = cleartmpdir('storage')
+        source, target = mk_uris('storage', s_host, t_host,
+                                 args['-p'], args['-q'])
+        print('Downloading ...')
+        rsync(source, LOCALTMPDIR)
+             
+        print('Uploading ...')
+        rsync(tmp_storage, target, sudo=True)
 
-if __name == '__main__':
+        print('Changing permissions (directories)')
+        cmd = ('sudo find {} -type d |sudo xargs chmod 750'
+               .format(os.path.join(args['-q'], 'storage')))
+        remote_cmd(client, t_host, PKEYFILE, cmd)
+
+        print('Changing permissions (files)')
+        cmd = ('sudo find {} -type f |sudo xargs chmod 640'
+               .format(os.path.join(args['-q'], 'storage')))
+        remote_cmd(client, t_host, PKEYFILE, cmd)
+
+        print('Changing ownership')
+        cmd = ('sudo chown -R {}:{} {}'
+               .format(t_user, t_user,
+                       os.path.join(args['-q'], 'storage'), t_user))
+        remote_cmd(client, t_host, PKEYFILE, cmd)
+    else:
+        
+
+def remote_cmd(client, host, pkeyf, cmd):
+    print('Executing: {}'.format(cmd))
+    client.connect(host, key_filename=pkeyf)
+    stdin, stdout, stderr = client.exec_command(cmd)
+    err =  stderr.readlines()
+    res = stdout.readlines()
+    if err:
+        print('ERROR: {}'.format(err))
+        sys.exit(1)
+    if res:
+        print(res)
+
+def rsync(source, target, sudo=False):
+    if sudo:
+        cmd = ['rsync','--rsync-path=sudo /usr/bin/rsync','-rvu', source, target]
+    else:
+        cmd = ['rsync', '-rvu', source, target]
+    try:
+        check_call(cmd)
+    except CalledProcessError as e:
+        print('ERROR: {}'.format(e.returncode))
+        sys.exit(1)
+        
+def cleartmpdir(typ, tmpdir=LOCALTMPDIR):
+    tmp_storage = os.path.join(LOCALTMPDIR,typ) 
+    if os.path.isfile(tmp_storage):
+        os.remove(tmp_storage)
+    elif os.path.isdir(tmp_storage):
+        rmtree(tmp_storage)
+    else:
+        pass
+    return tmp_storage
+
+def mk_uris(typ, s_host, t_host, s_path, t_path):
+    sourceuri = s_host + ':{}/{}'.format(s_path, typ)
+    targeturi = t_host + ':{}/'.format(t_path)
+    return (sourceuri, targeturi)
+
+if __name__ == '__main__':
     main()
-
 
