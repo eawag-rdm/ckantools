@@ -14,6 +14,7 @@ import docopt
 import os
 import re
 import urllib
+import sys
 
 APIKEY = os.environ['CKAN_APIKEY_PROD1']
 HOSTPAT = re.compile(r'^(https?://[^/]+\.[^/]+).*$')
@@ -45,7 +46,7 @@ def _modify_pkg(pkg):
     oldversion = pkg.get('version')
     if oldversion:
         try:
-            newversion += int(oldversion)
+            newversion = int(oldversion) + 1
         except Exception as e:
             print("\nVersion of original package doesn't follow convention.\n")
             print(e)
@@ -69,7 +70,11 @@ def _modify_pkg(pkg):
     
 def _create_new_pkg(pkg, conn):
     print(pkg['name'])
-    res = conn.call_action('package_create', data_dict=pkg)
+    try:
+        res = conn.call_action('package_create', data_dict=pkg)
+    except Exception as e:
+        print("\nERROR: Something went wrong creating the new package\n")
+        raise e
     print(res)
 
 def _update_old_pkg_version(conn, oldid, oldversion):
@@ -77,18 +82,16 @@ def _update_old_pkg_version(conn, oldid, oldversion):
         'package_patch',
         data_dict={'id': oldid, 'version': oldversion})
         
-def main(url, conn, titleprefix):
+def main():
+    args = docopt.docopt(__doc__)
+    url = args['<old_pkg_url>']
+    conn = _getconn(url)
     pkg = _read_pkg(url, conn)
     oldid = pkg['id']
-    oldversion = _modify_pkg(pkg, titleprefix)
+    oldversion = _modify_pkg(pkg)
     _create_new_pkg(pkg, conn)
     _update_old_pkg_version(conn, oldid, oldversion)
 
 if __name__ == '__main__':
-    args = docopt.docopt(__doc__)
-    oldurl = args['<old_pkg_url>']
-    titleprefix = args['--title-prefix']
-    titleprefix = titleprefix if titleprefix[-1] == ' ' else  titleprefix + ' '
-    conn = _getconn(oldurl)
-    main(oldurl, conn, titleprefix)
+    main()
 
