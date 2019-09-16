@@ -2,15 +2,11 @@
 This script will generate a new version of a given package. Resources will
 point to the respective URL of the original package. When unchanged
 Usage:
-    pkg_new_version <old_pkg_url> [--title-prefix=<prefix>]
+    pkg_new_version <old_pkg_url>
     pkg_new_version -h
 
 Arguments:
-    <old_pkg_url>   URL of pervious version of data package
-
-Options:
-
-    -t <prefix>, --title-prefix=<prefix>  Prefix for the title to indicate new version [default: [Version 2] ]
+    <old_pkg_url>   URL of previous version of the data package
 
 '''
 import ckanapi
@@ -38,7 +34,7 @@ def _read_pkg(url, conn):
     pkg = conn.call_action('package_show', data_dict={'id': ds_name})
     return pkg
 
-def _modify_pkg(pkg, titleprefix):
+def _modify_pkg(pkg):
     
     def _safename(name):
         newname = ''
@@ -59,7 +55,7 @@ def _modify_pkg(pkg, titleprefix):
         newversion = 2
         
     del pkg['id']
-    pkg['title'] = titleprefix + pkg['title']
+    pkg['title'] = '[Version {}] '.format(str(newversion)) + pkg['title']
     name = pkg['title'].replace(' ', '_').lower()
     name = _safename(name)
     pkg['name'] = name[:99] if len(name) > 99 else name
