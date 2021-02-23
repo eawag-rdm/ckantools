@@ -2,14 +2,17 @@
 This script will generate a new version of a given package. Resources will
 point to the respective URL of the original package. When unchanged
 Usage:
-    pkg_new_version <old_pkg_url>
+    pkg_new_version [--opendata-deriv] [--exclude_res] <old_pkg_url>
     pkg_new_version -h
 
 Arguments:
     <old_pkg_url>   URL of previous version of the data package
 
+Options:
+    --opendata-deriv, -od    
+
 TODO: 
-   + The newly introduces extras are not peristent when package is changed
+   + The newly introduces extras are not persistent when package is changed
      via the UI. Need to put them into schmeming.
    + "immutable" needs to be implemented
    + GUI representation of everything
