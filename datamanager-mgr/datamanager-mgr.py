@@ -3,15 +3,16 @@
 Lists the Datamangers for all organizations.
 
 Usage: datamanger-mgr [-s HOST] [-a]
-       datamanger-mgr [-s HOST] -e [-t TEMPLATE]]
+       datamanger-mgr [-s HOST] -e [-t TEMPLATE]
        datamanger-mgr [-h]
 
 Options:
-    -s HOST           The URL of the host to use [default: https://data.eawag.ch]
-    -a                Only return list of emails.
-    -h                This help.
-    -e                Create emails
-    -t TEMPLATE       Email based on TEMPLATE. [default: ./email.tmpl]
+-s HOST           The URL of the host to use [default: https://data.eawag.ch]
+-a                Only return list of emails. # not implemented
+-h                This help.
+-e                Create emails # not implemented
+-t TEMPLATE       Email based on TEMPLATE. [default: ./email.tmpl] # not implemented
+
 """
 
 import ckanapi
@@ -19,10 +20,14 @@ from docopt import docopt
 import logging
 import os
 import sys
+import csv
 
-#logging.basicConfig(level=logging.INFO)
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.WARNING)
 
+NO_SKIP_DEPARTMENTS = ['communications-department', 'ecotox-centre-eawag-epfl',
+                       'gis-services', 'research-data-management',
+                       'urban-water-management']
 class DatamanagerMgr:
     def __init__(self, args):
         self.lg = logging.getLogger(name=self.__class__.__name__)
@@ -57,43 +62,58 @@ class DatamanagerMgr:
         return orgas
 
     def _mk_dm_records(self):
-        dmrecords = []
+        dmrecords = {}
         if not self.orgas:
             self.lg.error('No or empty list of organizations.')
             raise Exception('List of organizations is empty')
         
-        dmlist = []
         for o in self.orgas:
-            if not o.get('groups'):
+            if not o.get('groups') and o['name'] not in NO_SKIP_DEPARTMENTS:
                 self.lg.info('Skipping department {}'.format(o['display_name']))
                 continue
-            dmlist.append(self.conn.call_action(
+            datamanager = self.conn.call_action(
                 'user_show',data_dict={'id': o['datamanager']})
-            )
+            try:
+                department = self.conn.call_action(
+                    'organization_show', data_dict={'id': o['groups'][0]['name']})
+            except IndexError:
+                department = o
+                
+            dmrecords[o['name']] = {'datamanager': datamanager,
+                                    'orga': o,
+                                    'department': department}
         self.lg.info('{} "real" organizations remaining'
-                     .format(len(dmlist)))
+                     .format(len(dmrecords)))
 
-        for user, orga in zip(dmlist, self.orgas):
-            dmrecords.append(
-                {'orga_name': orga['name'],
-                 'orga_display_name': orga['display_name'],
-                 'dm_name': user['name'],
-                 'dm_display_name': user['display_name']}
-            )
+        # for user, orga in zip(dmlist, self.orgas):
+        #     dmrecords.append(
+        #         {'orga_name': orga['name'],
+        #          'orga_display_name': orga['display_name'],
+        #          'dm_name': user['name'],
+        #          'dm_display_name': user['display_name']}
+        #     )
         return dmrecords
-    
-    def _render_table(self):
-        for dmrec in self.dmrecords:
-            print('{}\t{}\t{}\t{}'.format(dmrec['orga_name'],
-                                          dmrec['orga_display_name'],
-                                          dmrec['dm_name'],
-                                          dmrec['dm_display_name'])
-            )
-        
-    def _send_emails(self, templatefile):
-        
-        
 
+    def _render_table(self):
+        dmlist = sorted(self.dmrecords.values(),
+                        key=lambda dm: dm['department']['name'])
+
+        writer = csv.writer(sys.stdout, dialect='excel')
+        writer.writerow(['DEPARTMENT','DEPARTMENT_NORMNAME','GROUP','GROUP_NORMNAME','DATAMANAGER_FULLNAME',
+                         'DATAMANAGER_USERNAME','DATAMANAGER_EMAIL'])
+        
+        for dm in dmlist:
+            writer.writerow([dm['department']['display_name'],
+                             dm['department']['name'],
+                             dm['orga']['display_name'],
+                             dm['orga']['name'],
+                             dm['datamanager']['display_name'],
+                             dm['datamanager']['name'],
+                             dm['datamanager']['email']])
+        
+    # To be implemented
+    def _send_emails(self, templatefile):
+        pass
         
     def main(self):
         if not self.args['-e']:
